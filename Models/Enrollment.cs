@@ -12,7 +12,7 @@
         public int StudentID { get; set; }
         public Grade? Grade { get; set; } = null;
 
-        public required virtual Course Course { get; set; }
-        public required virtual Student Student { get; set; }
+        public virtual Course Course { get; set; } = null!;
+        public virtual Student Student { get; set; } = null!;
     }
 }
