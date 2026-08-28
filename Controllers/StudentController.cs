@@ -18,7 +18,9 @@ namespace ContosoUniversity.Controllers
         // GET: STUDENTS
         public async Task<IActionResult> Index()    
         {
-            return View(await _context.Students.ToListAsync());
+            return View(await _context.Students
+                .AsNoTracking()
+                .ToListAsync());
         }
 
         // GET: STUDENTS/Details/5
@@ -30,7 +32,11 @@ namespace ContosoUniversity.Controllers
             }
 
             var student = await _context.Students
+                .AsNoTracking() // to disable tracking for a faster load time
+                .Include(s => s.Enrollments)
+                .ThenInclude(e => e.Course)
                 .FirstOrDefaultAsync(m => m.Id == id);
+
             if (student == null)
             {
                 return NotFound();
@@ -50,14 +56,25 @@ namespace ContosoUniversity.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,LastName,FirstMidName,EnrollmentDate,Enrollments")] Student student)
+        public async Task<IActionResult> Create(
+            [Bind("Id,LastName,FirstMidName,EnrollmentDate")]
+            Student student
+        )
         {
-            if (ModelState.IsValid)
+            try
             {
-                _context.Add(student);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                if (ModelState.IsValid)
+                {
+                    _context.Add(student);
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
+                }
             }
+            catch (DbUpdateException)
+            {
+                ModelState.AddModelError("", "Unable to save changes. Try again, and if the problem persists see your system administrator.");
+            }
+
             return View(student);
         }
 
@@ -70,10 +87,12 @@ namespace ContosoUniversity.Controllers
             }
 
             var student = await _context.Students.FindAsync(id);
+
             if (student == null)
             {
                 return NotFound();
             }
+
             return View(student);
         }
 
@@ -82,38 +101,58 @@ namespace ContosoUniversity.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int? id, [Bind("Id,LastName,FirstMidName,EnrollmentDate,Enrollments")] Student student)
+        public async Task<IActionResult> Edit(
+            int? id,
+            
+            [Bind("Id,LastName,FirstMidName,EnrollmentDate")]
+            Student student
+           )
         {
             if (id != student.Id)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            var studentToUpdate = await _context.Students.FirstOrDefaultAsync(s => s.Id == id);
+
+            if (studentToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            if (await TryUpdateModelAsync<Student>(
+                studentToUpdate,
+                "",
+                s => s.FirstMidName,
+                s => s.LastName,
+                s => s.EnrollmentDate
+            ))
             {
                 try
                 {
-                    _context.Update(student);
                     await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
                 }
-                catch (DbUpdateConcurrencyException)
+                catch (DbUpdateException)
                 {
-                    if (!StudentExists(student.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    ModelState.AddModelError(
+                        "",
+                        "Unable to save changes. " + 
+                        "Try again, and if the problem persists, " + 
+                        "see your system administrator."
+                    );
                 }
-                return RedirectToAction(nameof(Index));
             }
-            return View(student);
+
+            return View(studentToUpdate);
         }
 
         // GET: STUDENTS/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        [HttpGet]
+        public async Task<IActionResult> Delete(
+            int? id,
+            bool? saveChangesError = false
+        )
         {
             if (id == null)
             {
@@ -121,10 +160,22 @@ namespace ContosoUniversity.Controllers
             }
 
             var student = await _context.Students
+                .AsNoTracking()
+                .Include(s => s.Enrollments)
+                .ThenInclude(e => e.Course)
                 .FirstOrDefaultAsync(m => m.Id == id);
+
             if (student == null)
             {
                 return NotFound();
+            }
+
+            if (saveChangesError.GetValueOrDefault())
+            {
+                ViewData["ErrorMessage"] =
+                    "Delete failed. Try again " +
+                    "and if the problem persists, " +
+                    "see your system administrator.";
             }
 
             return View(student);
@@ -136,13 +187,22 @@ namespace ContosoUniversity.Controllers
         public async Task<IActionResult> DeleteConfirmed(int? id)
         {
             var student = await _context.Students.FindAsync(id);
-            if (student != null)
+
+            if (student == null)
             {
-                _context.Students.Remove(student);
+                return RedirectToAction(nameof(Index));
             }
 
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            try
+            {
+                _context.Students.Remove(student);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException)
+            {
+                return RedirectToAction(nameof(Delete), new { id, saveChangesError = true });
+            }
         }
 
         private bool StudentExists(int? id)
