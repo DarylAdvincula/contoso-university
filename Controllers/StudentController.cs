@@ -6,11 +6,11 @@ using ContosoUniversity.DAL;
 
 namespace ContosoUniversity.Controllers
 {
-    public class StudentsController : Controller
+    public class StudentController : Controller
     {
         private readonly SchoolContext _context;
 
-        public StudentsController(SchoolContext context)
+        public StudentController(SchoolContext context)
         {
             _context = context;
         }
