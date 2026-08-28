@@ -10,9 +10,9 @@
         public int EnrollmentID { get; set; }
         public int CourseID { get; set; }
         public int StudentID { get; set; }
-        public Grade? Grade { get; set; }
+        public Grade? Grade { get; set; } = null;
 
-        public virtual Course Course { get; set; }
-        public virtual Student Student { get; set; }
+        public required virtual Course Course { get; set; }
+        public required virtual Student Student { get; set; }
     }
 }
