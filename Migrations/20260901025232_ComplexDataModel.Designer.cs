@@ -207,7 +207,7 @@ namespace ContosoUniversity.Migrations
                         .IsRequired();
 
                     b.HasOne("ContosoUniversity.Models.Instructor", "Instructor")
-                        .WithMany("CourseAssingments")
+                        .WithMany("CourseAssignments")
                         .HasForeignKey("InstructorID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -270,7 +270,7 @@ namespace ContosoUniversity.Migrations
 
             modelBuilder.Entity("ContosoUniversity.Models.Instructor", b =>
                 {
-                    b.Navigation("CourseAssingments");
+                    b.Navigation("CourseAssignments");
 
                     b.Navigation("OfficeAssignment")
                         .IsRequired();
