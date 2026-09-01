@@ -9,18 +9,59 @@ namespace ContosoUniversity.Controllers
     public class StudentController : Controller
     {
         private readonly SchoolContext _context;
-
+        
         public StudentController(SchoolContext context)
         {
             _context = context;
         }
 
         // GET: STUDENTS
-        public async Task<IActionResult> Index()    
+        public async Task<IActionResult> Index(
+            string sortOrder,
+            string currentFilter,
+            string searchString,
+            int? pageNumber
+        )
         {
-            return View(await _context.Students
-                .AsNoTracking()
-                .ToListAsync());
+            ViewData["CurrentSort"] = sortOrder;
+            ViewData["NameSortParm"] = String.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewData["DateSortParm"] = sortOrder == "Date" ? "date_desc" : "Date";
+
+            if (searchString != null)
+            {
+                pageNumber = 1; // set 1 as default if there is no search string
+            }
+            else
+            {
+                searchString = currentFilter; // reset search string with the currentFilter value
+            }
+
+            ViewData["CurrentFilter"] = searchString;
+
+            var students = from s in _context.Students select s;
+
+            if (!String.IsNullOrEmpty(searchString))
+            {
+                students = students.Where(s =>
+                    s.LastName.Contains(searchString) ||
+                    s.FirstMidName.Contains(searchString)
+                );
+            }
+
+            students = sortOrder switch
+            {
+                "name_desc" => students.OrderByDescending(s => s.LastName),
+                "Date"      => students.OrderBy(s => s.EnrollmentDate),
+                "date_desc" => students.OrderByDescending(s => s.EnrollmentDate),
+                _           => students.OrderBy(s => s.LastName),
+            };
+
+            int pageSize = 3;
+            return View(await PaginatedList<Student>.CreateAsync(
+                students.AsNoTracking(),
+                pageNumber ?? 1,
+                pageSize
+            ));
         }
 
         // GET: STUDENTS/Details/5
